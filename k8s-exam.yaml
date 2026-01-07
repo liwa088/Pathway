@@ -1,0 +1,388 @@
+---
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: exam
+
+---
+# PostgreSQL Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: exam
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        env:
+        - name: POSTGRES_DB
+          value: examdb
+        - name: POSTGRES_USER
+          value: admin
+        - name: POSTGRES_PASSWORD
+          value: admin123
+        ports:
+        - containerPort: 5432
+
+---
+# PostgreSQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: exam
+spec:
+  selector:
+    app: postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+
+---
+# Adminer Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: adminer
+  namespace: exam
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: adminer
+  template:
+    metadata:
+      labels:
+        app: adminer
+    spec:
+      containers:
+      - name: adminer
+        image: adminer:latest
+        ports:
+        - containerPort: 8080
+
+---
+# Adminer Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: adminer
+  namespace: exam
+spec:
+  selector:
+    app: adminer
+  ports:
+  - port: 8080
+    targetPort: 8080
+
+---
+# Portainer ServiceAccount
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: portainer-sa
+  namespace: exam
+
+---
+# Portainer ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: portainer-crb
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: portainer-sa
+  namespace: exam
+
+---
+# Portainer Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portainer
+  namespace: exam
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: portainer
+  template:
+    metadata:
+      labels:
+        app: portainer
+    spec:
+      serviceAccountName: portainer-sa
+      containers:
+      - name: portainer
+        image: portainer/portainer-ce:latest
+        ports:
+        - containerPort: 9000
+        - containerPort: 8000
+
+---
+# Portainer Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: portainer
+  namespace: exam
+spec:
+  selector:
+    app: portainer
+  ports:
+  - name: http
+    port: 9000
+    targetPort: 9000
+  - name: edge
+    port: 8000
+    targetPort: 8000
+
+---
+# Pathway App Deployment (UPDATED FOR PROFESSIONAL VERSION)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pathway-app
+  namespace: exam
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pathway-app
+  template:
+    metadata:
+      labels:
+        app: pathway-app
+    spec:
+      containers:
+      - name: pathway-app
+        image: liwa08/pathway-exam:pro  # Changed to :pro tag
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000  # Nginx port
+          name: web
+        - containerPort: 8080  # Pathway API port
+          name: api
+        # Added health checks
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        # Added resource limits
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+
+---
+# Pathway App Service (UPDATED)
+apiVersion: v1
+kind: Service
+metadata:
+  name: pathway-app
+  namespace: exam
+spec:
+  selector:
+    app: pathway-app
+  ports:
+  - name: web
+    port: 8000
+    targetPort: 8000
+  - name: api
+    port: 8080
+    targetPort: 8080
+
+---
+# Traefik ServiceAccount
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: traefik-ingress-controller
+  namespace: exam
+
+---
+# Traefik ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: traefik-ingress-controller
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - services
+      - endpoints
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - extensions
+      - networking.k8s.io
+    resources:
+      - ingresses
+      - ingressclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - extensions
+      - networking.k8s.io
+    resources:
+      - ingresses/status
+    verbs:
+      - update
+
+---
+# Traefik ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: traefik-ingress-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: traefik-ingress-controller
+subjects:
+  - kind: ServiceAccount
+    name: traefik-ingress-controller
+    namespace: exam
+
+---
+# Traefik Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traefik
+  namespace: exam
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traefik
+  template:
+    metadata:
+      labels:
+        app: traefik
+    spec:
+      serviceAccountName: traefik-ingress-controller
+      containers:
+      - name: traefik
+        image: traefik:v2.10
+        args:
+          - --api.insecure=true
+          - --api.dashboard=true
+          - --providers.kubernetesingress
+          - --entrypoints.web.address=:80
+          - --entrypoints.traefik.address=:8080
+        ports:
+        - name: web
+          containerPort: 80
+        - name: dashboard
+          containerPort: 8080
+
+---
+# Traefik Service (LoadBalancer)
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik
+  namespace: exam
+spec:
+  type: LoadBalancer
+  selector:
+    app: traefik
+  ports:
+  - name: web
+    port: 80
+    targetPort: 80
+  - name: dashboard
+    port: 8080
+    targetPort: 8080
+
+---
+# Ingress Configuration
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: exam-ingress
+  namespace: exam
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  rules:
+  # Main Pathway App
+  - host: pathwayproject.blog
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: pathway-app
+            port:
+              number: 8000  # Nginx serves the dashboard here
+  
+  # Portainer
+  - host: portainer.pathwayproject.blog
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: portainer
+            port:
+              number: 9000
+  
+  # Adminer (Database Admin)
+  - host: dbadmin.pathwayproject.blog
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: adminer
+            port:
+              number: 8080
+  
+  # Traefik Dashboard
+  - host: traefik.pathwayproject.blog
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: traefik
+            port:
+              number: 8080
