@@ -8,7 +8,7 @@
 
 > A production-ready real-time analytics platform built with Pathway streaming framework, deployed on Kubernetes with complete monitoring and observability.
 
-🌐 **Live Demo:** [app.pathwayproject.blog](http://app.pathwayproject.blog)
+🌐 **Live Demo:** [pathwayproject.blog](http://app.pathwayproject.blog)
 
 ---
 
