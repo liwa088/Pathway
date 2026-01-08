@@ -159,7 +159,7 @@ All services are accessible via custom subdomains:
 
 | Service | URL | Description |
 |---------|-----|-------------|
-| **Main Dashboard** | [app.pathwayproject.blog](http://app.pathwayproject.blog) | Real-time metrics visualization |
+| **Main Dashboard** | [app.pathwayproject.blog](http://pathwayproject.blog) | Real-time metrics visualization |
 | **Portainer** | [portainer.pathwayproject.blog](http://portainer.pathwayproject.blog) | Kubernetes cluster management |
 | **Adminer** | [dbadmin.pathwayproject.blog](http://dbadmin.pathwayproject.blog) | Database administration |
 | **Traefik** | [traefik.pathwayproject.blog](http://traefik.pathwayproject.blog) | Load balancer dashboard |
